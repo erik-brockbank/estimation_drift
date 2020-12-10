@@ -1,3 +1,9 @@
+
+#'
+#' Experiment analysis for estimation drift manuscript
+#'
+
+
 setwd(paste0(here::here(), "/vullab/estimation_drift/"))
 rm(list=ls())
 
