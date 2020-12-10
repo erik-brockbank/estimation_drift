@@ -13,4 +13,4 @@ All analysis and modeling code is in `/analysis`
 ## Experiment
 All experiment code is in `/src`
 - Note the transition from python2 to python3 was, well, a bit unsuccessful... 
-- The code is readable to get a sense of how we ran the experiment, but may require some tweaking to run in your environment
+- The code is readable to get a sense of how the experiment was run, but may require some tweaking to work in your environment
