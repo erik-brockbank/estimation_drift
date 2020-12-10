@@ -1,0 +1,10 @@
+To generate sample_trial.png:
+From /numberline,
+python /numexpt/src/demo.py
+Screenshot trial image produced
+
+To modify dots used in sample_trial.png:
+From /numberline,
+vi /numexpt/src/demo.py
+Modify l12 `n = ...`
+Re-run with command above to generate trial image
