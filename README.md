@@ -8,7 +8,7 @@ All data is in `/data`
 ## Analysis
 All analysis and modeling code is in `/analysis`
 - The results presented in the experiment section are all in `exp1-analysis_drift.R`
-- The results presented in the modeling section are all in `estimation_model.R`
+- The results presented in the modeling section are in separate files that begin with `estimation_model-analysis_*.R`
 
 ## Experiment
 All experiment code is in `/src`

@@ -60,9 +60,6 @@ read_data = function(filepath, ntrials) {
   for (s in unique(dat$subject)) {
     dat$trial[dat$subject == s] = 1:ntrials
   }
-  #dat$model.answer = 0
-  #dat$bumper.trial = FALSE
-
   return(dat)
 }
 
@@ -264,6 +261,9 @@ shuffle_data = function(dat) {
     mutate(trial = sample(trial, length(trial), replace = F))
 }
 
+
+### GRAPHING FUNCTIONS =========================================================
+
 # Plotting functions
 my_log_breaks = function(lims) {
   majors = seq(floor(log10(lims[1])), ceiling(log10(lims[2])), by = 1)
@@ -284,6 +284,7 @@ mylogy = function(lims) {
                 breaks = 10^breaks[[1]],
                 minor_breaks = breaks[[2]])
 }
+
 
 # theme for plots of individual data
 individ_plot_theme = theme(
