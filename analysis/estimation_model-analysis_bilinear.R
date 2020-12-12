@@ -10,24 +10,31 @@
 #'
 
 
-setwd("/Users/erikbrockbank/web/vullab/numberline/erikb-2018/")
+setwd(paste0(here::here(), "/vullab/estimation_drift/"))
 rm(list=ls())
 
 library(Rmisc) # needed for call to `multiplot`
 # Fetch relevant model functions from samples_model
-source('samples_model-fxns_basic.R')
+source('analysis/estimation_model-fxns_basic.R')
 # Fetch relevant functions for fitting lines to model data
-source('samples_model-fxns_drift.R')
+source('analysis/estimation_model-fxns_drift.R')
 
 
-##########################
-### ANALYSIS FUNCTIONS ###
-##########################
+### GLOBALS ====================================================================
+
+OUTPUT_FILE = 'samples_model_bilinear.RData'
+
+### ANALYSIS FUNCTIONS =========================================================
+
+
+### GRAPHING FUNCTIONS =========================================================
 
 # Graphing functions
 my.log.breaks = function(lims){
   majors = seq(floor(log10(lims[1])), ceiling(log10(lims[2])), by = 1)
-  minors = log10(unlist(lapply(majors[-1], function(x){seq(10 ^ (x - 1), 9 * 10 ^ (x - 1), by = 10 ^ (x - 1))})))
+  minors = log10(unlist(lapply(
+    majors[-1],
+    function(x){seq(10 ^ (x - 1), 9 * 10 ^ (x - 1), by = 10 ^ (x - 1))})))
   return(list(majors, minors))
 }
 
@@ -68,7 +75,7 @@ individ_plot_theme = theme(
   legend.position = "bottom"
 )
 
-# NB: this is the same as "drift_theme" in `samples_model-analysis_drift.R`
+# NB: this is the same as "drift_theme" in `estimate_model-analysis_drift.R`
 large_text_theme = theme(
   # titles
   plot.title = element_text(face = "bold", size = 32),
@@ -94,10 +101,14 @@ large_text_theme = theme(
 
 plot.fits.all.subjects = function(subj.data, model.data, predictions) {
   ggplot() +
-    geom_point(data = subj.data, aes(x = num_dots, y = answer, color = "subject"), alpha = 0.25) +
-    geom_point(data = model.data, aes(x = num_dots, y = answer, color = "model"), alpha = 0.25) +
-    geom_line(data = predictions, aes(x = num_dots, y = bipred.subj, color = "subject")) +
-    geom_line(data = predictions, aes(x = num_dots, y = bipred.mod, color = "model")) +
+    geom_point(data = subj.data,
+               aes(x = num_dots, y = answer, color = "subject"), alpha = 0.25) +
+    geom_point(data = model.data,
+               aes(x = num_dots, y = answer, color = "model"), alpha = 0.25) +
+    geom_line(data = predictions,
+              aes(x = num_dots, y = bipred.subj, color = "subject")) +
+    geom_line(data = predictions,
+              aes(x = num_dots, y = bipred.mod, color = "model")) +
     geom_abline() +
     mylogx(c(1, 300)) +
     mylogy(c(1, 300)) +
@@ -112,10 +123,14 @@ plot.fits.all.subjects = function(subj.data, model.data, predictions) {
 
 plot.fits.sample.subjects = function(subj.data, model.data, predictions, subj.labels) {
   ggplot() +
-    geom_point(data = subj.data, aes(x = num_dots, y = answer, color = "subject"), alpha = 0.25, size = 2) +
-    geom_point(data = model.data, aes(x = num_dots, y = answer, color = "model"), alpha = 0.25, size = 2) +
-    geom_line(data = predictions, aes(x = num_dots, y = bipred.subj, color = "subject"), size = 2) +
-    geom_line(data = predictions, aes(x = num_dots, y = bipred.mod, color = "model"), size = 2) +
+    geom_point(data = subj.data,
+               aes(x = num_dots, y = answer, color = "subject"), alpha = 0.25, size = 2) +
+    geom_point(data = model.data,
+               aes(x = num_dots, y = answer, color = "model"), alpha = 0.25, size = 2) +
+    geom_line(data = predictions,
+              aes(x = num_dots, y = bipred.subj, color = "subject"), size = 2) +
+    geom_line(data = predictions,
+              aes(x = num_dots, y = bipred.mod, color = "model"), size = 2) +
     geom_abline() +
     mylogx(c(1, 300)) +
     mylogy(c(1, 1000)) +
@@ -133,17 +148,21 @@ scattterplot.fits.comparison = function(subj.fits, model.fits.summary) {
   ggplot() +
     geom_point(data = subj.fits, aes(x = cutoff.trans, y = slope.trans, color = "subjects"),
                size = 3) +
-    geom_errorbar(data = subj.fits, aes(x = cutoff.trans, color = "subjects",
+    geom_errorbar(data = subj.fits,
+                  aes(x = cutoff.trans, color = "subjects",
                                                 ymin = slope.trans - slope.error.trans,
                                                 ymax = slope.trans + slope.error.trans),
                   width = 0) +
-    geom_point(data = model.fits.summary, aes(x = mean.cutoff, y = mean.slope, color = "model"),
+    geom_point(data = model.fits.summary,
+               aes(x = mean.cutoff, y = mean.slope, color = "model"),
                size = 3) +
-    geom_errorbar(data = model.fits.summary, aes(x = mean.cutoff, color = "model",
+    geom_errorbar(data = model.fits.summary,
+                  aes(x = mean.cutoff, color = "model",
                                                        ymin = mean.slope - se.slope,
                                                        ymax = mean.slope + se.slope),
                   width = 0.5) +
-    geom_errorbarh(data = model.fits.summary, aes(y = mean.slope, color = "model",
+    geom_errorbarh(data = model.fits.summary,
+                   aes(y = mean.slope, color = "model",
                                                         xmin = mean.cutoff - se.cutoff,
                                                         xmax = mean.cutoff + se.cutoff),
                    height = 0.05) +
@@ -163,7 +182,8 @@ histogram.slopes.comparison = function(subj.fits, model.fits.summary) {
   subj.fits %>%
     ggplot(aes(x = slope.trans)) +
     geom_histogram(binwidth = 0.05, fill = I("grey"), col = I("black")) +
-    geom_vline(data = model.fits.summary, aes(xintercept = mean.slope), color = "red", linetype = "dashed", size = 2) +
+    geom_vline(data = model.fits.summary,
+               aes(xintercept = mean.slope), color = "red", linetype = "dashed", size = 2) +
     labs(x = "Fitted slopes (model in red)") +
     ggtitle("Model underestimation is similar to subjects") +
     individ_plot_theme +
@@ -176,7 +196,8 @@ histogram.cutoff.comparison = function(subj.fits, model.fits.summary) {
   subj.fits %>%
     ggplot(aes(x = cutoff.trans)) +
     geom_histogram(binwidth = 3, fill = I("grey"), col = I("black")) +
-    geom_vline(data = model.fits.summary, aes(xintercept = mean.cutoff), color = "red", linetype = "dashed", size = 2) +
+    geom_vline(data = model.fits.summary,
+               aes(xintercept = mean.cutoff), color = "red", linetype = "dashed", size = 2) +
     labs(x = "Fitted cutoffs (model in red)") +
     ggtitle("Model cutoff is similar to subjects") +
     individ_plot_theme +
@@ -187,12 +208,18 @@ histogram.cutoff.comparison = function(subj.fits, model.fits.summary) {
 
 plot.fits.marginalized = function(subj.data, model.data, predictions) {
   ggplot() +
-    geom_point(data = model.data, aes(x = num_dots, y = answer, color = "model"), size = 2, alpha = 0.05) +
-    geom_point(data = subj.data, aes(x = num_dots, y = answer, color = "subjects"), size = 2, alpha = 0.05) +
-    geom_line(data = predictions, aes(x = num_dots, y = prediction.subj, color = "subjects"), size = 2, alpha = 0.85) +
-    geom_line(data = predictions, aes(x = num_dots, y = prediction.mod, color = "model"), size = 2, alpha = 0.85) +
-    geom_ribbon(data = predictions, mapping = aes(x = num_dots, ymin = prediction.ll.mod, ymax = prediction.ul.mod), inherit.aes = FALSE, alpha = 0.2) +
-    geom_ribbon(data = predictions, mapping = aes(x = num_dots, ymin = prediction.ll.subj, ymax = prediction.ul.subj), inherit.aes = FALSE, alpha = 0.2) +
+    geom_point(data = model.data,
+               aes(x = num_dots, y = answer, color = "model"), size = 2, alpha = 0.05) +
+    geom_point(data = subj.data,
+               aes(x = num_dots, y = answer, color = "subjects"), size = 2, alpha = 0.05) +
+    geom_line(data = predictions,
+              aes(x = num_dots, y = prediction.subj, color = "subjects"), size = 2, alpha = 0.85) +
+    geom_line(data = predictions,
+              aes(x = num_dots, y = prediction.mod, color = "model"), size = 2, alpha = 0.85) +
+    geom_ribbon(data = predictions,
+                mapping = aes(x = num_dots, ymin = prediction.ll.mod, ymax = prediction.ul.mod), inherit.aes = FALSE, alpha = 0.2) +
+    geom_ribbon(data = predictions,
+                mapping = aes(x = num_dots, ymin = prediction.ll.subj, ymax = prediction.ul.subj), inherit.aes = FALSE, alpha = 0.2) +
     geom_abline(position = "identity") +
     mylogx(c(1, MAX_ESTIMATE)) +
     mylogy(c(1, MAX_ESTIMATE)) +
@@ -209,9 +236,8 @@ plot.fits.marginalized = function(subj.data, model.data, predictions) {
 }
 
 
-##################
-### RUN MODELS ###
-##################
+
+### RUN MODELS =================================================================
 
 data = run.model.baseline()
 
@@ -224,11 +250,10 @@ model.data = data %>%
   select(subject, trial, num_dots, answer)
 
 
-################
-### ANALYSIS ###
-################
 
-### Fit slopes to each subject's data (in aggregate, not by blocks) ###
+### ANALYSIS ===================================================================
+
+# Fit slopes to each subject's data (in aggregate, not by blocks)
 PARAMS = c(0.7, 1.5, -0.5, 0.2, -0.7, 0.2)
 names(PARAMS) = c("ma", "sa", "mb", "sb", "ms", "ss")
 
@@ -286,7 +311,7 @@ for (s in unique(subj.data$subject)){
 }
 
 
-### Fit slopes to estimates across all subjects, marginalizing over subject ###
+# Fit slopes to estimates across all subjects, marginalizing over subject
 model.data.agg = model.data
 model.data.agg$subject = 1 # set one subject for all data points
 subj.data.agg = subj.data
@@ -315,13 +340,10 @@ predictions.agg = data.frame('num_dots' = true_vals,
 
 
 
-
-
-#############
-### PLOTS ###
-#############
+### PLOT RESULTS ===============================================================
 
 ### 1. Sample subjects plots: model and subject underestimation side by side ###
+# NB: these plots not used in manuscript
 
 # Look at all participants matched to model
 fits.comparison.overall = plot.fits.all.subjects(subj.data, model.data, predictions)
@@ -364,5 +386,9 @@ marginal.comparison.plot = plot.fits.marginalized(subj.data.agg, model.data.agg,
 marginal.comparison.plot
 
 
-save(subj.data, model.data, predictions, bipower.fits.subj, bipower.fits.mod.summary, subj.data.agg, model.data.agg, predictions.agg, file="samples_model_bilinear.RData")
+save(subj.data, model.data,
+     predictions,
+     bipower.fits.subj, bipower.fits.mod.summary,
+     subj.data.agg, model.data.agg,
+     predictions.agg, file = paste("analysis/", OUTPUT_FILE))
 

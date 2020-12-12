@@ -1,9 +1,6 @@
 
 ### README ###
-#' This file contains only supporting functions for the basic samples model, as well as
-#' graphing functions for displaying basic analyes.
-#' Note this file does not contain code for fitting lines to human/model data, just for
-#' executing the model and displaying results.
+#' This file contains supporting functions for the samples model.
 #'
 #' The model attempts to simulate a process of estimating quantity whereby the participant
 #' has a noisy estimate of the magnitude of the number of dots shown and chooses an exact numerical estimate

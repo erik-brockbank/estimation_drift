@@ -1,23 +1,18 @@
 
 # Fetch relevant model and participant data from noisy_perception model
-source('samples_model-fxns_basic.R')
+#source('samples_model-fxns_basic.R')
 
 
 ### README ###
-#' This file includes supporting functions for fitting lines to output from the samples_model.
-#' These functions require first running the model using functions in `samples_model-fxns_basic.R`.
-#' Follow the example in `samples_model-analysis_drift.R`.
-#' 
-#' Note many of the supporting functions are copied or adapted from:
-#' `numberline/numexpt/R/fit.block-models.2014-06-02.R`
-#' `numberline/numexpt/R/fit.models.2014-06-02.R`
-#'  
+#' This file includes supporting functions for fitting lines to output from the estimation_model.
+#' These functions require first running the model using functions in `estimation_model-fxns_basic.R`.
+#'
 
 
 
-###############
-### GLOBALS ###
-###############
+#######################
+### DEFAULT GLOBALS ###
+#######################
 
 BLOCKSIZE = 30 # number of trials per block
 
@@ -57,17 +52,17 @@ brutefit = function(tmp) {
   nLL = function(a, b, s) {
     -loglik(tmp$num_dots, tmp$answer, map.bipower, a, b, 10 ^ s) + PRIORS[[1]](a) + PRIORS[[2]](b) + PRIORS[[3]](s)
   }
-  
+
   iter = 0
   fits = NULL
   fit = NULL
   while (is.null(fits)) {
     try(fit <- summary(mle(nLL, # NB: this needs to be assigned with `<-` for some reason
-                           start = list(a = runif(1, PARAMS["ma"], PARAMS["sa"]), 
-                                      b = runif(1, PARAMS["mb"], PARAMS["sb"]), 
+                           start = list(a = runif(1, PARAMS["ma"], PARAMS["sa"]),
+                                      b = runif(1, PARAMS["mb"], PARAMS["sb"]),
                                       s = rnorm(1, PARAMS["ms"], PARAMS["ss"])))), TRUE)
     iter = iter + 1
-    
+
     if (!is.null(fit)) {
       # fits = c(tmp$subject[1], -0.5 * fit@m2logL, length(tmp$num_dots), fit@coef[,"Estimate"])
       fits = c(tmp$subject[1], -0.5 * fit@m2logL, length(tmp$num_dots), fit@coef[,"Estimate"], fit@coef[,"Std. Error"])
@@ -75,12 +70,12 @@ brutefit = function(tmp) {
       if (iter > 50) {
         # fits = c(tmp$subject[1], -9999, 0, 0, 0, 0)
         fits = c(tmp$subject[1], -9999, 0, 0, 0, 0, 0, 0, 0)
-      }      
+      }
     }
   }
   # names(fits) = c("subject", "logL", "n", "a", "b", "s")
   names(fits) = c("subject", "logL", "n", "a", "b", "s", "se.a", "se.b", "se.s")
-  
+
   return(fits)
 }
 
@@ -98,7 +93,7 @@ namedSlopes = function(x) {
 
 # Util function used when calculating correlation matrix
 cbind.fill = function(...) {
-  nm = list(...) 
+  nm = list(...)
   rnames = unique(unlist(lapply(nm, rownames)))
   nm = lapply(nm, function(x) {
     newrows = rnames[!rnames %in% rownames(x)]
@@ -136,7 +131,7 @@ get.cor.matrix = function(slopes) {
   cor.matrix = cor(block.slopes, block.slopes, use = "pairwise.complete.obs") # n blocks by n blocks slope correlation matrix
   rownames(cor.matrix) = c() # NB: clearing out rownames and colnames is necessary for the processing below
   colnames(cor.matrix) = c()
-  
+
   return(cor.matrix)
 }
 
@@ -148,7 +143,7 @@ get.cor.df = function(cor.matrix) {
   names(slope.cor.df) = c("block1", "block2", "slope.corr")
   slope.cor.df = slope.cor.df[slope.cor.df$block1 <= slope.cor.df$block2,] # remove redundant lower half of matrix
   slope.cor.df$slope.corr[slope.cor.df$block1 == slope.cor.df$block2] = NA # set correlation to NA in identical blocks
-  
+
   return(slope.cor.df)
 }
 
