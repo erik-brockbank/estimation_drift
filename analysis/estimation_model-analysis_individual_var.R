@@ -3,29 +3,46 @@
 #' This file does an analysis of the *individual variability* across subject estimates
 #' and model estimates for different versions of the model.
 #'
-#' It takes the output from the model in `samples_model-fxns_basic` and
-#' then uses more advanced functions in `samples_model-fxns_drift` to
+#' It takes the output from the model in `estimation_model-fxns_basic` and
+#' then uses more advanced functions in `estimation_model-fxns_drift` to
 #' fit lines to the model and human estimates, for easy analysis variability
 #' in bilinear fit parameters across subject and model participants
 #'
 
 
-setwd("/Users/erikbrockbank/web/vullab/numberline/erikb-2018/")
+setwd(paste0(here::here(), "/vullab/estimation_drift/"))
 rm(list=ls())
 
-library(viridis)
 
-# Fetch relevant model functions from samples_model
-source('samples_model-fxns_basic.R')
+library(viridis) # needed for color profile of plots
+
+# Fetch relevant model functions
+source('analysis/estimation_model-fxns_basic.R')
 # Fetch relevant functions for fitting lines to model data
-source('samples_model-fxns_drift.R')
+source('analysis/estimation_model-fxns_drift.R')
 
-DATA_FILE = "samples_model_individual_var.RData" # global here to keep reads/saves consistent
-# load(DATA_FILE)
+OUTPUT_FILE = 'estimation_model-individual_var.RData' # global here to keep reads/saves consistent
+# load(paste('analysis/', OUTPUT_FILE, sep = ""))
 
-##########################
-### ANALYSIS FUNCTIONS ###
-##########################
+
+
+
+### GLOBALS ====================================================================
+
+PARAMS = c(0.7, 1.5, -0.5, 0.2, -0.7, 0.2)
+names(PARAMS) = c("ma", "sa", "mb", "sb", "ms", "ss")
+
+PRIORS = list()
+PRIORS[[1]] = function(x){-dnorm(x, 1.5, 0.1, log = T)} #
+PRIORS[[2]] = function(x){-dnorm(x, -0.2, 0.1, log = T)} #
+PRIORS[[3]] = function(x){-dnorm(x, -1, 0.1, log = T)} #
+
+MODEL_RUNS = 10 # NB: takes about 90s per model run
+
+
+
+
+### ANALYSIS FUNCTIONS =========================================================
 
 get.split.half.cor = function(data) {
   data = data %>%
@@ -54,10 +71,12 @@ get.split.half.cor = function(data) {
 }
 
 
-# Graphing functions
+### GRAPHING FUNCTIONS =========================================================
+
 my.log.breaks = function(lims){
   majors = seq(floor(log10(lims[1])), ceiling(log10(lims[2])), by = 1)
-  minors = log10(unlist(lapply(majors[-1], function(x){seq(10 ^ (x - 1), 9 * 10 ^ (x - 1), by = 10 ^ (x - 1))})))
+  minors = log10(unlist(lapply(majors[-1],
+                               function(x){seq(10 ^ (x - 1), 9 * 10 ^ (x - 1), by = 10 ^ (x - 1))})))
   return(list(majors, minors))
 }
 
@@ -120,10 +139,12 @@ plot.model.comparison.histogram = function(model.slopes.low, model.slopes.high, 
                    alpha = 0.5,
                    binwidth = 0.05) +
     # high var slopes
-    geom_histogram(data = model.slopes.high, aes(x = slope.trans, color = "model.high", fill = "model.high"),
+    geom_histogram(data = model.slopes.high,
+                   aes(x = slope.trans, color = "model.high", fill = "model.high"),
                    alpha = 0.5,
                    binwidth = 0.05) +
-    geom_vline(xintercept = mean(subj.slopes$slope.trans), color = "black", linetype = "dashed", size = 2) +
+    geom_vline(xintercept = mean(subj.slopes$slope.trans),
+               color = "black", linetype = "dashed", size = 2) +
     scale_color_manual(name = element_blank(),
                        labels = c("model.low" = "low variability model",
                                   "model.high" = "high variability model"),
@@ -150,11 +171,13 @@ plot.model.comparison.histogram = function(model.slopes.low, model.slopes.high, 
 plot.model.human.comparison.histogram = function(model.slopes, subj.slopes, plot.title) {
   ggplot() +
     # subject slopes
-    geom_histogram(data = subj.slopes, aes(x = slope.trans, color = "subjects", fill = "subjects"),
+    geom_histogram(data = subj.slopes,
+                   aes(x = slope.trans, color = "subjects", fill = "subjects"),
                    alpha = 0.5,
                    binwidth = 0.05) +
     # high var slopes
-    geom_histogram(data = model.slopes, aes(x = slope.trans, color = "model", fill = "model"),
+    geom_histogram(data = model.slopes,
+                   aes(x = slope.trans, color = "model", fill = "model"),
                    alpha = 0.5,
                    binwidth = 0.05) +
     scale_color_manual(name = element_blank(),
@@ -172,19 +195,23 @@ plot.model.human.comparison.histogram = function(model.slopes, subj.slopes, plot
 
 plot.model.comparison.scatter = function(model.slopes.low, model.slopes.high, subj.slopes) {
   ggplot() +
-    geom_point(data = model.slopes.low, aes(x = cutoff.trans, y = slope.trans, color = "model.low"),
+    geom_point(data = model.slopes.low,
+               aes(x = cutoff.trans, y = slope.trans, color = "model.low"),
                size = 3) +
-    geom_errorbar(data = model.slopes.low, aes(x = cutoff.trans,
-                                                   ymin = slope.trans - slope.error.trans,
-                                                   ymax = slope.trans + slope.error.trans,
-                                                   color = "model.low"),
+    geom_errorbar(data = model.slopes.low,
+                  aes(x = cutoff.trans,
+                      ymin = slope.trans - slope.error.trans,
+                      ymax = slope.trans + slope.error.trans,
+                      color = "model.low"),
                   width = 0) +
-    geom_point(data = model.slopes.high, aes(x = cutoff.trans, y = slope.trans, color = "model.high"),
+    geom_point(data = model.slopes.high,
+               aes(x = cutoff.trans, y = slope.trans, color = "model.high"),
                size = 3) +
-    geom_errorbar(data = model.slopes.high, aes(x = cutoff.trans,
-                                                    ymin = slope.trans - slope.error.trans,
-                                                    ymax = slope.trans + slope.error.trans,
-                                                    color = "model.high"),
+    geom_errorbar(data = model.slopes.high,
+                  aes(x = cutoff.trans,
+                      ymin = slope.trans - slope.error.trans,
+                      ymax = slope.trans + slope.error.trans,
+                      color = "model.high"),
                   width = 0) +
     geom_hline(yintercept = 1.0, linetype = "dashed") +
     scale_color_manual(name = "Data source",
@@ -199,18 +226,22 @@ plot.model.comparison.scatter = function(model.slopes.low, model.slopes.high, su
 
 plot.model.human.comparison.scatter = function(model.slopes, subj.slopes, plot.title) {
   ggplot() +
-    geom_point(data = subj.slopes, aes(x = cutoff.trans, y = slope.trans, color = "subjects"),
+    geom_point(data = subj.slopes,
+               aes(x = cutoff.trans, y = slope.trans, color = "subjects"),
                size = 3) +
-    geom_errorbar(data = subj.slopes, aes(x = cutoff.trans, color = "subjects",
-                                                ymin = slope.trans - slope.error.trans,
-                                                ymax = slope.trans + slope.error.trans),
+    geom_errorbar(data = subj.slopes,
+                  aes(x = cutoff.trans, color = "subjects",
+                      ymin = slope.trans - slope.error.trans,
+                      ymax = slope.trans + slope.error.trans),
                   width = 0) +
-    geom_point(data = model.slopes, aes(x = cutoff.trans, y = slope.trans, color = "model"),
+    geom_point(data = model.slopes,
+               aes(x = cutoff.trans, y = slope.trans, color = "model"),
                size = 3) +
-    geom_errorbar(data = model.slopes, aes(x = cutoff.trans,
-                                                   ymin = slope.trans - slope.error.trans,
-                                                   ymax = slope.trans + slope.error.trans,
-                                                   color = "model"),
+    geom_errorbar(data = model.slopes,
+                  aes(x = cutoff.trans,
+                      ymin = slope.trans - slope.error.trans,
+                      ymax = slope.trans + slope.error.trans,
+                      color = "model"),
                   width = 0) +
     geom_hline(yintercept = 1.0, linetype = "dashed") +
     scale_color_manual(name = "Data source",
@@ -225,8 +256,8 @@ plot.model.human.comparison.scatter = function(model.slopes, subj.slopes, plot.t
 
 plot.model.human.split.half = function(split.half.corrs) {
   split.half.corrs %>%
-    # ggplot(aes(x = fct_reorder(source, mean.corr, .desc = TRUE), y = mean.corr, fill = source)) +
-    ggplot(aes(x = source, y = mean.corr, fill = source)) +
+    ggplot(aes(x = fct_reorder(source, mean.corr, .desc = TRUE), y = mean.corr, fill = source)) +
+    # ggplot(aes(x = source, y = mean.corr, fill = source)) +
     geom_bar(stat = "identity", width = 0.5) +
     geom_errorbar(aes(ymin = lower.corr, ymax = upper.corr), width = 0.25) +
     labs(x = "", y = "Fitted slope correlation") +
@@ -243,25 +274,7 @@ plot.model.human.split.half = function(split.half.corrs) {
 
 
 
-###############
-### GLOBALS ###
-###############
-
-PARAMS = c(0.7, 1.5, -0.5, 0.2, -0.7, 0.2)
-names(PARAMS) = c("ma", "sa", "mb", "sb", "ms", "ss")
-
-PRIORS = list()
-PRIORS[[1]] = function(x){-dnorm(x, 1.5, 0.1, log = T)} #
-PRIORS[[2]] = function(x){-dnorm(x, -0.2, 0.1, log = T)} #
-PRIORS[[3]] = function(x){-dnorm(x, -1, 0.1, log = T)} #
-
-MODEL_RUNS = 10 # NB: takes about 90s per model run
-
-
-
-###########################
-### ANALYSIS: SLOPE FIT ###
-###########################
+### ANALYSIS: SLOPE FIT ========================================================
 
 # Run models
 subj.data = run.model.baseline()
@@ -298,10 +311,7 @@ bipower.fits.mod.low = bipower.fits.mod.low %>%
 plot.model.comparison.histogram(bipower.fits.mod.low, bipower.fits.mod.high, bipower.fits.subj)
 
 
-
-######################################
-### ANALYSIS: SPLIT HALF SLOPE FIT ###
-######################################
+### ANALYSIS: SPLIT HALF SLOPE FIT =============================================
 
 # Overall structure for storing correlation values
 model.split.half.corrs = data.frame(source = character(),
@@ -310,6 +320,7 @@ model.split.half.corrs = data.frame(source = character(),
                               lower.ci = numeric(),
                               upper.ci = numeric())
 
+# NB: this takes a very long time, > 15 mins.
 for (x in seq(1:MODEL_RUNS)) {
   print(paste("######## CYCLE: ", x, " ########")) # approx. 5 mins / cycle
   # Run models
@@ -328,21 +339,24 @@ for (x in seq(1:MODEL_RUNS)) {
   model.baseline.cors = get.split.half.cor(model.data.baseline)
 
   # Update aggregate data frame of split half corrs
-  model.split.half.corrs = rbind(model.split.half.corrs, data.frame(source = "model.high.var",
-                                                                    model.run = x,
-                                                                    corr = model.data.high.var.cors$estimate,
-                                                                    lower.ci = model.data.high.var.cors$conf.int[1],
-                                                                    upper.ci = model.data.high.var.cors$conf.int[2]))
-  model.split.half.corrs = rbind(model.split.half.corrs, data.frame(source = "model.low.var",
-                                                                    model.run = x,
-                                                                    corr = model.data.low.var.cors$estimate,
-                                                                    lower.ci = model.data.low.var.cors$conf.int[1],
-                                                                    upper.ci = model.data.low.var.cors$conf.int[2]))
-  model.split.half.corrs = rbind(model.split.half.corrs, data.frame(source = "model.baseline",
-                                                                    model.run = x,
-                                                                    corr = model.baseline.cors$estimate,
-                                                                    lower.ci = model.baseline.cors$conf.int[1],
-                                                                    upper.ci = model.baseline.cors$conf.int[2]))
+  model.split.half.corrs = rbind(model.split.half.corrs,
+                                 data.frame(source = "model.high.var",
+                                            model.run = x,
+                                            corr = model.data.high.var.cors$estimate,
+                                            lower.ci = model.data.high.var.cors$conf.int[1],
+                                            upper.ci = model.data.high.var.cors$conf.int[2]))
+  model.split.half.corrs = rbind(model.split.half.corrs,
+                                 data.frame(source = "model.low.var",
+                                            model.run = x,
+                                            corr = model.data.low.var.cors$estimate,
+                                            lower.ci = model.data.low.var.cors$conf.int[1],
+                                            upper.ci = model.data.low.var.cors$conf.int[2]))
+  model.split.half.corrs = rbind(model.split.half.corrs,
+                                 data.frame(source = "model.baseline",
+                                            model.run = x,
+                                            corr = model.baseline.cors$estimate,
+                                            lower.ci = model.baseline.cors$conf.int[1],
+                                            upper.ci = model.baseline.cors$conf.int[2]))
 }
 
 # Summarize many model runs above
@@ -365,22 +379,24 @@ subj.split.half.corrs = get.split.half.cor(subj.data)
 
 # Add subject data to summary
 model.split.half.summary = as.data.frame(model.split.half.summary)
-split.half.summary = rbind(data.frame(source = "subjects",
-                                                      mean.corr = subj.split.half.corrs$estimate,
-                                                      n.obs = NA,
-                                                      corr.sd = NA,
-                                                      corr.se = NA,
-                                                      lower.corr = subj.split.half.corrs$conf.int[1],
-                                                      upper.corr = subj.split.half.corrs$conf.int[2]),
-                           model.split.half.summary)
+split.half.summary = rbind(model.split.half.summary,
+                           data.frame(source = "subjects",
+                                      mean.corr = subj.split.half.corrs$estimate,
+                                      n.obs = NA, corr.sd = NA, corr.se = NA,
+                                      lower.corr = subj.split.half.corrs$conf.int[1],
+                                      upper.corr = subj.split.half.corrs$conf.int[2]))
 
 
 
 # Bar plot of correlations over multiple runs above
+split.half.summary$source = factor(split.half.summary$source,
+                                   levels = c("subjects", "model.high.var",
+                                              "model.low.var", "model.baseline"))
 plot.model.human.split.half(split.half.summary)
 
 
-
 # Save data
-save(model.split.half.corrs, subj.split.half.corrs, split.half.summary, bipower.fits.mod.low, bipower.fits.mod.high, bipower.fits.subj, file = DATA_FILE)
+save(model.split.half.corrs, subj.split.half.corrs, split.half.summary,
+     bipower.fits.mod.low, bipower.fits.mod.high, bipower.fits.subj,
+     file = paste("analysis/", OUTPUT_FILE, sep = ""))
 

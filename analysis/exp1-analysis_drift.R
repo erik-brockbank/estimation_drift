@@ -373,6 +373,8 @@ for (s in unique(prediction_eval$subject)) {
                                               prediction_eval$powpred[prediction_eval$subject == s])$estimate))
 }
 
+
+# Calculate and compare r-squared for bilinear and power law functions
 cor_output = cor_output %>%
   mutate(bipred_rsq = bipred_cor^2,
          powpred_rsq = powpred_cor^2)

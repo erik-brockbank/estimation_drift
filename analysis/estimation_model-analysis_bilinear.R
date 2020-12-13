@@ -22,9 +22,48 @@ source('analysis/estimation_model-fxns_drift.R')
 
 ### GLOBALS ====================================================================
 
-OUTPUT_FILE = 'samples_model_bilinear.RData'
+OUTPUT_FILE = 'estimation_model-bilinear.RData'
+# load(paste('analysis/', OUTPUT_FILE, sep = ""))
 
 ### ANALYSIS FUNCTIONS =========================================================
+
+# NB: this over-rides equivalent functions from fxns_drift.R
+# Compute best fitting params for estimate data
+brutefit = function(tmp) {
+  nLL = function(a, b, s) {
+    -loglik(tmp$num_dots, tmp$answer, usefx, a, b, 10 ^ s) + PRIORS[[1]](a) + PRIORS[[2]](b) + PRIORS[[3]](s)
+  }
+
+  iter = 0
+  fits = NULL
+  fit = NULL
+  while (is.null(fits)) {
+    try(fit <- summary(mle(nLL, # NB: this needs to be assigned with `<-` for some reason
+                           start = list(a = runif(1, PARAMS["ma"], PARAMS["sa"]),
+                                        b = runif(1, PARAMS["mb"], PARAMS["sb"]),
+                                        s = rnorm(1, PARAMS["ms"], PARAMS["ss"])))), TRUE)
+    iter = iter + 1
+
+    if (!is.null(fit)) {
+      # fits = c(tmp$subject[1], -0.5 * fit@m2logL, length(tmp$num_dots), fit@coef[,"Estimate"])
+      fits = c(tmp$subject[1], -0.5 * fit@m2logL, length(tmp$num_dots), fit@coef[,"Estimate"], fit@coef[,"Std. Error"])
+    } else {
+      if (iter > 50) {
+        # fits = c(tmp$subject[1], -9999, 0, 0, 0, 0)
+        fits = c(tmp$subject[1], -9999, 0, 0, 0, 0, 0, 0, 0)
+      }
+    }
+  }
+  # names(fits) = c("subject", "logL", "n", "a", "b", "s")
+  names(fits) = c("subject", "logL", "n", "a", "b", "s", "se.a", "se.b", "se.s")
+
+  return(fits)
+}
+
+# simple power-law mapping
+map.power = function(x, a, b) {
+  10^(a + 10^b * log10(x))
+}
 
 
 ### GRAPHING FUNCTIONS =========================================================
@@ -254,9 +293,9 @@ model.data = data %>%
 ### ANALYSIS ===================================================================
 
 # Fit slopes to each subject's data (in aggregate, not by blocks)
+usefx = map.bipower
 PARAMS = c(0.7, 1.5, -0.5, 0.2, -0.7, 0.2)
 names(PARAMS) = c("ma", "sa", "mb", "sb", "ms", "ss")
-
 PRIORS = list()
 PRIORS[[1]] = function(x){-dnorm(x, 1.5, 0.1, log = T)} #
 PRIORS[[2]] = function(x){-dnorm(x, -0.2, 0.1, log = T)} #
@@ -271,6 +310,19 @@ bipower.fits.subj
 bipower.fits.mod = data.frame(do.call(rbind, by(model.data, model.data$subject, brutefit)))
 print(paste("Failed bipower fits:", sum(bipower.fits.mod$logL == -9999)))
 bipower.fits.mod
+
+# Fit power law functions to model estimates for comparison with bilinear fits
+usefx = map.power
+PARAMS = c(0.2, 0.4, -0.3, 0.3, -0.7, 0.2)
+names(PARAMS) = c("ma", "sa", "mb", "sb", "ms", "ss")
+PRIORS = list()
+PRIORS[[1]] = function(x){0}
+PRIORS[[2]] = function(x){-dnorm(x, 0, 0.2, log = T)}
+priors[[3]] = function(x){0}
+power.fits.mod = data.frame(do.call(rbind, by(model.data, model.data$subject, brutefit)))
+print(paste("Failed power fits:", sum(power.fits.mod$logL == -9999)))
+power.fits.mod
+
 
 # Add columns transforming fits to non-log space
 bipower.fits.subj = bipower.fits.subj %>%
@@ -303,12 +355,52 @@ for (s in unique(subj.data$subject)){
   # model params
   biparams.mod = bipower.fits.mod[bipower.fits.mod$subject == s,]
   bipred.mod = (map.bipower(stims, biparams.mod$a, biparams.mod$b))
+  # model params: power
+  powparams.mod = power.fits.mod[power.fits.mod$subject == s,]
+  powpred.mod = (map.power(stims, powparams.mod$a, powparams.mod$b))
   predictions = rbind(predictions,
                       data.frame(subject = s,
                                  num_dots = stims,
                                  bipred.subj = bipred.subj,
-                                 bipred.mod = bipred.mod))
+                                 bipred.mod = bipred.mod,
+                                 powpred.mod = powpred.mod))
 }
+
+# Compare model bilinear fits to power law fits
+prediction_eval = model.data %>%
+  left_join(predictions, by = c("subject", "num_dots"))
+
+cor_output = data.frame(
+  subject = numeric(),
+  bipred_cor = numeric(),
+  powpred_cor = numeric()
+)
+
+for (s in unique(prediction_eval$subject)) {
+  cor_output = rbind(cor_output,
+                     data.frame(
+                       subject = s,
+                       bipred_cor = cor.test(prediction_eval$answer[prediction_eval$subject == s],
+                                             prediction_eval$bipred.mod[prediction_eval$subject == s])$estimate,
+                       powpred_cor = cor.test(prediction_eval$answer[prediction_eval$subject == s],
+                                              prediction_eval$powpred.mod[prediction_eval$subject == s])$estimate))
+}
+
+
+# Calculate and compare r-squared for bilinear and power law functions
+cor_output = cor_output %>%
+  mutate(bipred_rsq = bipred_cor^2,
+         powpred_rsq = powpred_cor^2)
+
+mean(cor_output$bipred_rsq)
+mean(cor_output$powpred_rsq)
+
+binom.test(x = sum(cor_output$bipred_rsq > cor_output$powpred_rsq),
+           n = length(cor_output$subject),
+           p = 0.5)
+
+
+
 
 
 # Fit slopes to estimates across all subjects, marginalizing over subject
@@ -339,7 +431,6 @@ predictions.agg = data.frame('num_dots' = true_vals,
                          'prediction.ll.subj' = map.bipower.ci(true_vals, fits.agg.subj$a, 10^(fits.agg.subj$b - fits.agg.subj$se.b)))
 
 
-
 ### PLOT RESULTS ===============================================================
 
 ### 1. Sample subjects plots: model and subject underestimation side by side ###
@@ -358,6 +449,7 @@ spredictions = subset(predictions, predictions$subject %in% sample.subjects)
 
 fits.comparison.sample = plot.fits.sample.subjects(sdat, mod.sdat, spredictions, subj.labels)
 fits.comparison.sample
+
 
 
 ### 2. Plot bilinear fit scatter plots and histograms ###
@@ -390,5 +482,5 @@ save(subj.data, model.data,
      predictions,
      bipower.fits.subj, bipower.fits.mod.summary,
      subj.data.agg, model.data.agg,
-     predictions.agg, file = paste("analysis/", OUTPUT_FILE))
+     predictions.agg, file = paste("analysis/", OUTPUT_FILE, sep = ""))
 

@@ -1,8 +1,4 @@
 
-# Fetch relevant model and participant data from noisy_perception model
-#source('samples_model-fxns_basic.R')
-
-
 ### README ###
 #' This file includes supporting functions for fitting lines to output from the estimation_model.
 #' These functions require first running the model using functions in `estimation_model-fxns_basic.R`.

@@ -2,37 +2,50 @@
 #' This file does an analysis of the *calibration drift* across subject estimates
 #' and model estimates for different versions of the model.
 #'
-#' It takes the output from the model in `samples_model-fxns_basic` and
-#' then uses more advanced functions in `samples_model-fxns_drift` to
+#' It takes the output from the model in `estimation_model-fxns_basic` and
+#' then uses more advanced functions in `estimation_model-fxns_drift` to
 #' fit lines to the model and human estimates, for easy analysis of model drift
 #' under various parameters and comparison between model and participant calibration drift.
 
 
-setwd("/Users/erikbrockbank/web/vullab/numberline/erikb-2018/")
-rm(list = ls())
+setwd(paste0(here::here(), "/vullab/estimation_drift/"))
+rm(list=ls())
 
-library(viridis)
+library(viridis) # needed for color profile of plots
 
-# Fetch relevant model functions from samples_model
-source('samples_model-fxns_basic.R')
+# Fetch relevant model functions
+source('analysis/estimation_model-fxns_basic.R')
 # Fetch relevant functions for fitting lines to model data
-source('samples_model-fxns_drift.R')
-
-load('samples_model-drift.RData') # Load RData from previous runs
-
-# Analysis =====================================================================
-# Jump to this section easily by making a comment like the above
-x = 0
+source('analysis/estimation_model-fxns_drift.R')
 
 
-save.data = FALSE # toggle to save data
+
+# GLOBALS ======================================================================
+
+OUTPUT_FILE = 'estimation_model-drift.RData'
+# Load RData from previous runs
+# load(paste('analysis/', OUTPUT_FILE, sep = ""))
+SAVE_DATA = TRUE # toggle to save data
+
+# Initialize params (mean a, var a, mean b, var b, mean s, var s)
+PARAMS = c(0.7, 1.5, -0.5, 0.2, -0.7, 0.2)
+names(PARAMS) = c("ma", "sa", "mb", "sb", "ms", "ss")
+
+# Initialize priors
+PRIORS = list()
+PRIORS[[1]] = function(x){-dnorm(x, 1.5, 0.1, log = T)} #
+PRIORS[[2]] = function(x){-dnorm(x, -0.2, 0.1, log = T)} #
+PRIORS[[3]] = function(x){-dnorm(x, -1, 0.1, log = T)} #
+
+MODEL_RUNS = 10 # default: 10
 
 
-##########################
-### ANALYSIS FUNCTIONS ###
-##########################
 
-# Graphing functions
+### ANALYSIS FUNCTIONS =========================================================
+
+
+### GRAPHING FUNCTIONS =========================================================
+
 my.log.breaks = function(lims){
   majors = seq(floor(log10(lims[1])), ceiling(log10(lims[2])), by = 1)
   minors = log10(unlist(lapply(majors[-1], function(x){seq(10 ^ (x - 1), 9 * 10 ^ (x - 1), by = 10 ^ (x - 1))})))
@@ -183,6 +196,7 @@ plot.drift.ribbon = function(corr.data) {
     geom_line() +
     geom_point() +
     labs(x = "Distance (trials)", y = "Slope correlation") +
+    ggtitle("Comparing 'slow drift' in model estimates") +
     scale_color_viridis(discrete = T,
                         name = element_blank(),
                         labels = c("subjects" = "subjects", "model.base" = "baseline model", "model.iv" = "high variability model")) +
@@ -214,29 +228,7 @@ plot.blocksize.comparison = function(agg.corr.data) {
 }
 
 
-
-###############
-### GLOBALS ###
-###############
-
-# Initialize params (mean a, var a, mean b, var b, mean s, var s)
-PARAMS = c(0.7, 1.5, -0.5, 0.2, -0.7, 0.2)
-names(PARAMS) = c("ma", "sa", "mb", "sb", "ms", "ss")
-
-# Initialize priors
-PRIORS = list()
-PRIORS[[1]] = function(x){-dnorm(x, 1.5, 0.1, log = T)} #
-PRIORS[[2]] = function(x){-dnorm(x, -0.2, 0.1, log = T)} #
-PRIORS[[3]] = function(x){-dnorm(x, -1, 0.1, log = T)} #
-
-
-MODEL_RUNS = 10 # default: 10
-
-
-
-################
-### ANALYSIS ###
-################
+### ANALYSIS ===================================================================
 
 corr.data = data.frame(
   source = character(),
@@ -262,7 +254,7 @@ for (x in seq(1:MODEL_RUNS)) { # takes approx. 25 mins with 10 MODEL_RUNS
     mutate(answer = model.answer) %>% # align column names to match participant data
     select(subject, trial, num_dots, answer)
 
-  ### Model drift: baseline ###
+  # Model drift: baseline
   # Fit slopes, NB: this can take ~10s
   fitsBlock.model.base = fit.slopes(c(BLOCKSIZE), model.base)
   # Get matrix of fitted slope correlations
@@ -273,7 +265,7 @@ for (x in seq(1:MODEL_RUNS)) { # takes approx. 25 mins with 10 MODEL_RUNS
   cor.means.df.blocks.model.base = get.distance.cors(slope.cor.df.model.base, c(BLOCKSIZE))
 
 
-  ### Model drift: individual variability ###
+  # Model drift: individual variability
   # Fit slopes, NB: this can take ~10s
   fitsBlock.model.iv = fit.slopes(c(BLOCKSIZE), model.iv)
   # Get matrix of fitted slope correlations
@@ -313,11 +305,11 @@ corr.data.summary = corr.data %>%
 
 
 # Run subject analysis
-subj.data = run.model.baseline(n.samples = 30)
+subj.data = run.model.baseline(n.samples = 20)
 subj.data = subj.data %>%
   select(subject, trial, num_dots, answer)
 
-### Subject drift ###
+# Subject drift
 # Fit slopes, NB: this can take ~10s
 fitsBlock.subj = fit.slopes(c(BLOCKSIZE), subj.data)
 # Get matrix of fitted slope correlations
@@ -330,6 +322,7 @@ cor.means.df.blocks.subj = get.distance.cors(slope.cor.df.subj, c(BLOCKSIZE))
 
 # Add subject data to summary
 corr.data.summary = as.data.frame(corr.data.summary)
+corr.data.summary = corr.data.summary %>% filter(source != "subjects")
 corr.data.summary = rbind(corr.data.summary, data.frame(
   source = "subjects",
   trial.dist = cor.means.df.blocks.subj$trial.dist,
@@ -345,18 +338,16 @@ plot.drift.ribbon(corr.data.summary)
 
 
 # Save data
-if (save.data) {
+if (SAVE_DATA) {
   save(corr.data, corr.data.summary,
-       file = DATA_FILE)
+       file = paste("analysis/", OUTPUT_FILE, sep = ""))
 }
 
 
 
-###########################
-### ANALYSIS: BLOCKSIZE ###
-###########################
+### APPENDIX ANALYSIS: BLOCKSIZE ===============================================
 
-# modification of block size here overrides global value of 30 in `samples_model-fxns_drift.R`
+# modification of block size here overrides global value of 30 in `estimation_model-fxns_drift.R`
 blocksize.tests = c(3, 5, 10, 20, 30)
 
 

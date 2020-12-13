@@ -12,8 +12,9 @@ source('analysis/estimation_model-fxns_basic.R')
 ### GLOBALS ====================================================================
 
 SAVE_MSE_DATA = TRUE
-MSE_DATA_FILE = 'analysis/samples_model-mse.RData'
-
+MSE_DATA_FILE = 'estimation_model-mse.RData'
+# This will load mse.df into the environment with saved data
+# load(paste('analysis/', MSE_DATA_FILE, sep = ""))
 
 ### ANALYSIS FUNCTIONS =========================================================
 
@@ -151,8 +152,6 @@ sample.subj.plot.base
 
 # Calculate MSE for baseline model over different numbers of samples
 # NB: this can take a while!! (approx. 60 seconds per run, but this increases as N_SAMPLES increases)
-
-# load(MSE_DATA_FILE) # This will load mse.df into the environment with saved data
 mse.df = data.frame('N' = numeric(), 'p' = numeric(), 'mse.subj' = numeric(), 'mse.mod' = numeric())
 for (n in seq(1, 25)) {
   print(paste("Running model with N_SAMPLES = ", n, ", P_BUMPER = ", p.bumper_baseline))
@@ -172,7 +171,7 @@ sample.subj.plot.base / mse.plot
 
 # optional: save output data
 if (SAVE_MSE_DATA) {
-  save(mse.df, file = MSE_DATA_FILE)
+  save(mse.df, file = paste('analysis/', MSE_DATA_FILE, sep = ""))
 }
 
 
