@@ -202,7 +202,7 @@ calculate.loglik = function(prev.trials, n.samples, min.est, max.est) {
   # each row, col element in X will be the log likelihood that the magnitude on the current trial maps to the column value, given the magnitude
   #   and corresponding estimate in that row's trial
   X = matrix(0, nrow = n.samples, ncol = max.est) # Initialize matrix for storing log likelihoods
-  # matrix storing proability in each col that magnitude on this trial is < magnitude in trial indicated by that row
+  # matrix storing probability in each col that magnitude on this trial is < magnitude in trial indicated by that row
   P = matrix(rep(1 - prev.trials$p.mag.greater[1:(n.samples)], max.est), nrow = n.samples)
   # matrix storing numerical estimate generated for each previous trial
   B = matrix(rep(floor(prev.trials$model.answer[1:(n.samples)]), max.est), nrow = n.samples)
