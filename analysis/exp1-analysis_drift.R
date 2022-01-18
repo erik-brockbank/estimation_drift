@@ -5,7 +5,7 @@
 
 
 setwd(paste0(here::here(), "/vullab/estimation_drift/"))
-rm(list=ls())
+# rm(list=ls())
 
 library(cocor)
 library(Matrix)
@@ -61,6 +61,11 @@ read_data = function(filepath, ntrials) {
     dat$trial[dat$subject == s] = 1:ntrials
   }
   return(dat)
+}
+
+# BIC function
+get_BIC = function(num_params, num_obs, ll) {
+  return((num_params * log(num_obs)) - (2 * ll))
 }
 
 # Model fitting functions
@@ -317,6 +322,14 @@ individ_plot_theme = theme(
 
 data = read_data(DATA_PATH, TRIALS)
 
+# Check fits for stimuli < 100
+# data = data %>%
+#   filter(num_dots <= 100) # removes approx. 7200 rows!
+
+# Check fits only above subitizing range
+# data = data %>%
+  # filter(num_dots > 4) # removes approx. 500 rows
+
 usefx = map_power
 ps = c(0.2, 0.4, -0.3, 0.3, -0.7, 0.2)
 names(ps) = c("ma", "sa", "mb", "sb", "ms", "ss")
@@ -339,7 +352,7 @@ print(paste("Failed bipower fits:", sum(bipower_fits$logL == -9999)))
 
 predictions = data.frame()
 for (s in unique(data$subject)) {
-  stims = seq(1, 300, by = 1)
+  stims = seq(1, max(data$num_dots), by = 1)
   powparams = power_fits[power_fits$subject == s,]
   powpred = (map_power(stims, powparams$a, powparams$b))
   biparams = bipower_fits[bipower_fits$subject == s,]
@@ -386,6 +399,41 @@ binom.test(x = sum(cor_output$bipred_rsq > cor_output$powpred_rsq),
            n = length(cor_output$subject),
            p = 0.5)
 
+# Calculate and compare BIC for bilinear and power law functions
+
+power_bic = get_BIC(2, power_fits$n, power_fits$logL)
+bipower_bic = get_BIC(2, bipower_fits$n, bipower_fits$logL)
+
+power_fits = power_fits %>%
+  rowwise() %>%
+  mutate(BIC = get_BIC(2, n, logL))
+
+bipower_fits = bipower_fits %>%
+  rowwise() %>%
+  mutate(BIC = get_BIC(2, n, logL))
+
+
+mean(bipower_fits$BIC)
+mean(power_fits$BIC)
+
+sum(bipower_fits$BIC < power_fits$BIC)
+
+
+# Summary stats about cutoff
+
+bipower_fits = bipower_fits %>%
+  mutate(cutoff_linear = 10^a,
+         slope_linear = 10^b)
+
+mean(bipower_fits$cutoff_linear)
+mean(bipower_fits$a)
+sd(bipower_fits$a)
+10^mean(bipower_fits$a)
+
+mean(bipower_fits$b)
+sd(bipower_fits$b)
+10^mean(bipower_fits$b)
+
 
 ### PLOTS: Bilinear estimate calibration =======================================
 
@@ -415,7 +463,8 @@ ggplot(data, aes(x = num_dots, y = answer)) +
   geom_line(data = predictions, aes(x = num_dots, y = bipred), color = rgb(0, 0.6, 0), size = 1) +
   geom_line(data = predictions, aes(x = num_dots, y = powpred), color = "blue", size = 1) +
   geom_abline(position = "identity") +
-  mylogx(c(1, 300)) +
+  mylogx(c(1, max(data$num_dots))) +
+  # mylogy(c(1, max(data$answer))) +
   mylogy(c(1, 300)) +
   xlab("Number presented") +
   ylab("Number reported") +
